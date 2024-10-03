@@ -1,0 +1,1528 @@
+# ------------------------------------------- #
+# -------------- SUBSTITUTIONS -------------- #
+# ------------------------------------------- #
+substitutions:
+  name: stock-clock
+  friendly_name: "Stock Clock"
+  settings:           "\U0000e900" # settings
+  thermostat:         "\U0000e901" # thermostat
+  lock:               "\U0000e902" # security, alarm
+  camera:             "\U0000e903" # camera
+  curtains:           "\U0000e904" # curtains
+  lights:             "\U0000e905" # lights
+  air_conditioner:    "\U0000e906" # air_conditioner
+  motion:             "\U0000e907" # motion, presence
+  heating:            "\U0000e908" # heating
+  alarm_off:          "\U0000e909" # alarm off
+  alarm_on:           "\U0000e90a" # alarm on
+  ha:                 "\U0000e90b" # home assistant
+  color_temp:         "\U0000e90c" # color_temp
+  ventilation:        "\U0000e90d" # ventilation
+  wifi_25:            "\U0000e91e" # wifi signal from 25% to 1%
+  wifi_50:            "\U0000e91f" # wifi signal from 50% to 25%
+  wifi_75:            "\U0000e910" # wifi signal from 75% to 50%
+  wifi_100:           "\U000F0928" # wifi signal from 100% to 75% or disable
+  humidity:           "\U0000e912" # humidity
+  co2:                "\U0000e913" # co2
+  tvoc:               "\U0000e914" # air quality
+  temperature:        "\U0000e915" # temperature
+  illumination:       "\U0000e916" # lux
+  empty:              "\U0000e917" # placeholder
+  vacuum_cleaner:     "\U0000e918" # vacuum cleaner
+  logo:               "\U0000e919" # logo
+  homes:              "\U000F07D0" # homersd
+
+
+
+# ------------------------------------------- #
+# ------------ ESPHOME OPTIONS -------------- #
+# ------------------------------------------- #    
+esphome:
+  name: stock-clock
+  #platform: ESP32
+
+
+esp32:
+  board: featheresp32
+#  flash_size: 4MB
+
+  
+#script: !include common/script.yaml
+packages:
+  wifi: !include common/wifi.yaml
+  default: !include common/default.yaml
+  #diag: !include common/diag.yaml
+  #clock-sensors: !include common/clock-sensors.yaml  
+
+external_components:
+  - source: github://clydebarrow/esphome@lvgl-fixes
+    refresh: 60min
+    components: [ lvgl ]
+
+  - source: github://clydebarrow/esphome@remote_display
+    refresh: 60min
+    components: [vnc]
+    
+script: !include common/script_timeupdate.yaml
+
+# Enable Home Assistant API
+
+api:
+  encryption:
+    key: "OmNeUzZYRTBS2kFubeWC+EzB1JVoWxjC7gqhA31E1EE="
+  on_client_connected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.show: lbl_hastatus
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.hide: lbl_hastatus
+ota:
+  platform: esphome
+  password: "5638cb2f22e8bf0cec08a43232a70fbb"
+  
+wifi:
+  manual_ip: 
+    static_ip: !secret stock-clock_ip
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Stock-Clock Hotspot"
+    password: "9xwDY2zXNPxH"
+
+display:
+  - platform: vnc
+    id: vnc_display
+
+    rotation: 180
+    update_interval: 5s
+    auto_clear_enabled: false
+    dimensions:
+      width: 320
+      height: 240
+    on_connect:
+      then:
+        - lvgl.widget.redraw:
+
+  - platform: ili9xxx
+    model: TFT_2.4
+    cs_pin: 27
+    dc_pin: 32
+    reset_pin: 05
+    #rotation: 270
+    id: my_display
+    update_interval: never
+    auto_clear_enabled: false
+    invert_colors: false
+    transform:
+      swap_xy: true
+      mirror_y: true
+      mirror_x: true
+    dimensions:
+      height: 240
+      width: 320
+
+touchscreen:
+  - platform: vnc
+    id: vnc_touchscreen
+    display: vnc_display
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+spi:
+  clk_pin: 18
+  miso_pin: 12
+  mosi_pin: 23
+
+light:
+  # Backlight
+  - platform: monochromatic
+    output: GPIO04
+    name: Backlight
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+
+output:
+    # Backlight LED
+  - platform: ledc
+    pin: GPIO04
+    id: GPIO04
+    frequency: 100Hz
+
+button:
+  - platform: template
+    name: "Next Page"
+    on_press:
+      - lvgl.page.next
+
+binary_sensor:
+
+  - platform: gpio
+    pin:
+      number: GPIO37
+      #mode: INPUT_PULLUP
+      inverted: True
+    name: "Light Switch"
+    icon: mdi:nintendo-switch
+    device_class: light
+    filters:
+      - delayed_on: 15ms
+    on_press:
+      then:
+        - homeassistant.service:
+            service: light.turn_off
+            data:
+              entity_id: light.all_lights
+        - homeassistant.service:
+            service: scene.turn_on
+            data:
+              entity_id: scene.fireplace_off
+    on_double_click:
+      then:
+        - homeassistant.service:
+            service: light.turn_on
+            data:
+              entity_id: light.all_lights
+        - homeassistant.service:
+            service: scene.turn_on
+            data:
+              entity_id: scene.fireplace_on
+
+  - platform: gpio
+    pin:
+      number: GPIO38
+      #mode: INPUT_PULLUP
+      inverted: True
+    name: "Light Switch"
+    icon: mdi:nintendo-switch
+    device_class: light
+    filters:
+      - delayed_on: 15ms
+    on_press:
+
+      then:
+        - lvgl.page.next
+        
+    on_double_click:
+      then:
+        lvgl.page.show: main_page
+
+  - platform: gpio
+    pin:
+      number: GPIO39
+      inverted: True
+    name: "Light Switch"
+    icon: mdi:nintendo-switch
+    device_class: light
+    filters:
+      - delayed_on: 15ms
+    on_press:
+
+      then:
+        - lvgl.page.next
+        
+    on_double_click:
+      then:
+        lvgl.page.show: main_page
+
+time:
+  - platform: homeassistant
+    id: esptime
+    timezone: Europe/Amsterdam
+    on_time_sync:
+      - script.execute: time_update
+    on_time:
+      - minutes: '*'
+        seconds: 0
+        then:
+          - script.execute: time_update    
+
+interval:
+  - interval: 60sec
+    then:
+      - lvgl.page.next
+
+color:
+  - id: my_red
+    hex: e00202
+  - id: my_yellow
+    hex: dce002
+  - id: my_orange
+    hex: E0610E
+  - id: my_green
+    hex: 2aeb1c
+  - id: my_blue
+    hex: 05CDDA
+  - id: my_pink
+    hex: f50796
+  - id: my_white
+    red: 100%
+    green: 100%
+    blue: 100%
+  - id: my_black
+    red: 0%
+    green: 0%
+    blue: 0%
+  - id: my_claret
+    hex: 7a003b
+  - id: color_black
+    hex: 0d0d0d
+  - id: color_dark_gray
+    hex: 333333
+  - id: color_gray
+    hex: 666666
+  - id: color_white
+    hex: f2f0eb
+  - id: color_red
+    hex: ff0000
+  - id: color_crimson
+    hex: f5075c
+  - id: color_blue
+    hex: 2fc0ff
+  - id: color_yellow
+    hex: e7c12c
+  - id: color_amber
+    hex: f4a900
+  - id: color_mint
+    hex: 39d19c
+  - id: color_green
+    hex: 00ff00
+  - id: color_orange
+    hex: ff6633
+  - id: color_deep_orange
+    hex: ff6600
+  - id: color_violet
+    hex: 9670d6
+  - id: color_dark_blue
+    hex: 4867aa
+  - id: color_papaya
+    hex: FF8000
+font: 
+  - file: "fonts/PennStation.ttf"
+    id: pennstation_65
+    size: 65
+    bpp: 8
+    glyphs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, c, C, ':', '.', '°', '-']    
+
+  - file: "fonts/Roboto-Medium.ttf"
+    id: robo_20
+    size: 20
+    bpp: 4
+  - file: "fonts/Roboto-Medium.ttf"
+    id: robo_25
+    size: 25
+    bpp: 4
+  - file: "fonts/Roboto-Medium.ttf"
+    id: robo_30
+    size: 30
+    bpp: 4
+  - file: "fonts/Roboto-Medium.ttf"
+    id: robo_45
+    size: 45
+    bpp: 4
+  - file: "fonts/Roboto-Medium.ttf"
+    id: roboto_icons_25
+    size: 25
+    bpp: 4
+    extras:
+      - file: "fonts/materialdesignicons-webfont.ttf"
+        glyphs: [
+   
+          "\U0000E915", # temp  
+          "\U000F007A", # mdi-battery-10
+          "\U000F007B", # mdi-battery-20
+          "\U000F007C", # mdi-battery-30
+          "\U000F007D", # mdi-battery-40
+          "\U000F007E", # mdi-battery-50
+          "\U000F007F", # mdi-battery-60
+          "\U000F0080", # mdi-battery-70
+          "\U000F0081", # mdi-battery-80
+          "\U000F0082", # mdi-battery-90
+          "\U000F0079", # mdi-battery (full)
+          "\U000F008E", # mdi-battery-outline
+          "\U000F0091", # mdi-battery-unknown        
+          "\U000F0928", # wifi signal from 100% to 75% or disable
+          "\U000F0925", # wifi signal from 75% to 50%
+          "\U000F0922", # wifi signal from 50% to 25%
+          "\U000F091F", # wifi signal from 25% to 1%
+          "\U0000e90b", # HA
+          "\U000F07D0", # home  
+          "\U0000E911", #wifi
+                 
+          ]
+  - file: "fonts/Roboto-Medium.ttf"
+    id: roboto_icons_30
+    size: 30
+    bpp: 4
+    extras:
+      - file: "fonts/materialdesignicons-webfont.ttf"
+        glyphs: [
+          "\U000F07D0", # home        
+          "\U000F007A", # mdi-battery-10
+          "\U000F007B", # mdi-battery-20
+          "\U000F007C", # mdi-battery-30
+          "\U000F007D", # mdi-battery-40
+          "\U000F007E", # mdi-battery-50
+          "\U000F007F", # mdi-battery-60
+          "\U000F0080", # mdi-battery-70
+          "\U000F0081", # mdi-battery-80
+          "\U000F0082", # mdi-battery-90
+          "\U000F0079", # mdi-battery (full)
+          "\U000F008E", # mdi-battery-outline
+          "\U000F0091", # mdi-battery-unknown        
+          "\U000F0335", # mdi-lightbulb
+          "\U000F0336", # mdi-lightbulb-outline
+          "\U000F0928", # wifi signal from 100% to 75% or disable
+          "\U000F0925", # wifi signal from 75% to 50%
+          "\U000F0922", # wifi signal from 50% to 25%
+          "\U000F091F", # wifi signal from 25% to 1%
+          "\U0000e90b", # HA
+          "\U0000E911", #wifi              
+          ]
+
+  - file: 'fonts/materialdesignicons-webfont.ttf'
+    id: font_mdi_large
+    size: 75
+    glyphs: &mdi-weather-glyphs
+      - "\U000F0590" # mdi-weather-cloudy
+      - "\U000F0F2F" # mdi-weather-cloudy-alert
+      - "\U000F0E6E" # mdi-weather-cloudy-arrow-right
+      - "\U000F0591" # mdi-weather-fog
+      - "\U000F0592" # mdi-weather-hail
+      - "\U000F0F30" # mdi-weather-hazy
+      - "\U000F0898" # mdi-weather-hurricane
+      - "\U000F0593" # mdi-weather-lightning
+      - "\U000F067E" # mdi-weather-lightning-rainy
+      - "\U000F0594" # mdi-weather-clear-night
+      - "\U000F0F31" # mdi-weather-night-partly-cloudy
+      - "\U000F0595" # mdi-weather-partly-cloudy
+      - "\U000F0F32" # mdi-weather-partly-lightning
+      - "\U000F0F33" # mdi-weather-partly-rainy
+      - "\U000F0F34" # mdi-weather-partly-snowy
+      - "\U000F0F35" # mdi-weather-partly-snowy-rainy
+      - "\U000F0596" # mdi-weather-pouring
+      - "\U000F0597" # mdi-weather-rainy
+      - "\U000F0598" # mdi-weather-snowy
+      - "\U000F0F36" # mdi-weather-snowy-heavy
+      - "\U000F067F" # mdi-weather-snowy-rainy
+      - "\U000F0599" # mdi-weather-sunny
+      - "\U000F0F37" # mdi-weather-sunny-alert
+      - "\U000F14E4" # mdi-weather-sunny-off
+      - "\U000F059A" # mdi-weather-sunset
+      - "\U000F059B" # mdi-weather-sunset-down
+      - "\U000F059C" # mdi-weather-sunset-up
+      - "\U000F0F38" # mdi-weather-tornado
+      - "\U000F059D" # mdi-weather-windy
+      - "\U000F059E" # mdi-weather-windy-variant
+
+image: 
+  - file: "images/backgrounds/neonpink320X240.png"
+    id: neonpink
+    type: RGB565
+
+sensor:
+
+  - platform: rotary_encoder
+    name: "All Lights Rotary"
+    pin_a:
+      number: GPIO26
+      #inverted: true
+      mode:
+        input: true
+        pullup: true
+    pin_b: 
+      number: GPIO19
+      #inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_clockwise:
+      - logger.log: "Turned Clockwise"
+    on_anticlockwise:
+      - logger.log: "Turned Anticlockwise"
+######################################################
+#                 TEMP SENSORS                       #
+#                                                    #
+######################################################
+  - platform: internal_temperature
+    name: "${friendly_name} Internal Temperature"   
+
+  - platform: homeassistant
+    id: average_temperature
+    entity_id: sensor.average_inside_temperature
+
+  - platform: homeassistant
+    id: shelf_temperature
+    entity_id: sensor.shelf_sensors_temperature
+    on_value:
+      - lvgl.label.update:
+          id: livingroom_temp_label
+          text:
+            format: "%.0f°C"
+            args: [x]
+          text_color: !lambda |-
+              if (id(shelf_temperature).state > -10 && id(shelf_temperature).state < 0) {
+              return lv_color_hex(0x00FF00);
+              } else if (id(shelf_temperature).state > 1 && id(shelf_temperature).state < 15) {
+              return lv_color_hex(0x48a516);
+              } else if (id(shelf_temperature).state > 16 && id(shelf_temperature).state < 23) {
+              return lv_color_hex(0x2ccb79);
+              } else if (id(shelf_temperature).state > 23 && id(shelf_temperature).state < 35) {
+              return lv_color_hex(0xd42323);
+              }
+              return lv_color_hex(0x00FF00);
+
+  - platform: homeassistant
+    id: bigbutton_temperature
+    entity_id: sensor.bigbutton_temperature_2 
+    on_value:
+      - lvgl.label.update:
+          id: bedroom_temp_label
+          text:
+            format: "%.0f°C"
+            args: [x]
+          text_color: !lambda |-
+              if (id(bigbutton_temperature).state > -10 && id(bigbutton_temperature).state < 0) {
+              return lv_color_hex(0x00FF00);
+              } else if (id(bigbutton_temperature).state > 1 && id(bigbutton_temperature).state < 15) {
+              return lv_color_hex(0x48a516);
+              } else if (id(bigbutton_temperature).state > 16 && id(bigbutton_temperature).state < 23) {
+              return lv_color_hex(0x2ccb79);
+              } else if (id(bigbutton_temperature).state > 23 && id(bigbutton_temperature).state < 35) {
+              return lv_color_hex(0xd42323);
+              }
+              return lv_color_hex(0x00FF00);
+
+  - platform: homeassistant
+    id: outside_temp
+    entity_id: sensor.buienradar_feel_temperature # Change the entity from your Home Assistant
+    on_value:
+      - lvgl.label.update:
+          id: outside_temp_label
+          text:
+            format: "%.0f°C"
+            args: [x]
+          text_color: !lambda |-
+              if (id(outside_temp).state > -10 && id(outside_temp).state < 0) {
+              return lv_color_hex(0x00FF00);
+              } else if (id(outside_temp).state > 1 && id(outside_temp).state < 15) {
+              return lv_color_hex(0x48a516);
+              } else if (id(outside_temp).state > 16 && id(outside_temp).state < 23) {
+              return lv_color_hex(0x2ccb79);
+              } else if (id(outside_temp).state > 23 && id(outside_temp).state < 35) {
+              return lv_color_hex(0xd42323);
+              }
+              return lv_color_hex(0x00FF00);
+
+  - platform: homeassistant
+    id: moto_battery
+    entity_id: sensor.moto_g_6_plus_battery_level
+    on_value:
+      - lvgl.label.update:
+          id: moto_battery_label
+          text: !lambda |-
+            static char buf[10];
+            std::string icon;
+            if (x == 100.0) {
+                icon = "\U000F0079"; // mdi-battery (full)
+            } else if (x > 90) {
+                icon = "\U000F0082"; // mdi-battery-90
+            } else if (x > 80) {
+                icon = "\U000F0081"; // mdi-battery-80
+            } else if (x > 70) {
+                icon = "\U000F0080"; // mdi-battery-70
+            } else if (x > 60) {
+                icon = "\U000F007F"; // mdi-battery-60
+            } else if (x > 50) {
+                icon = "\U000F007E"; // mdi-battery-50
+            } else if (x > 40) {
+                icon = "\U000F007D"; // mdi-battery-40
+            } else if (x > 30) {
+                icon = "\U000F007C"; // mdi-battery-30
+            } else if (x > 20) {
+                icon = "\U000F007B"; // mdi-battery-20
+            } else if (x > 10) {
+                icon = "\U000F007A"; // mdi-battery-10
+            } else if (x > 0) {
+                icon = "\U000F008E"; // mdi-battery-outline
+            } else {
+                icon = "\U000F0091"; // mdi-battery-unknown
+            }
+            snprintf(buf, sizeof(buf), "%s", icon.c_str());
+            return buf;
+
+  - platform: homeassistant
+    id: workshop_temperature
+    entity_id: sensor.workshop_sensors_temperature
+######################################################
+#                    TEXT SENSORS                    #
+#                                                    #
+######################################################
+
+text_sensor:
+
+  - platform: homeassistant
+    id: weather_now
+    entity_id: sensor.buienradar_detailed_condition
+    on_value: 
+      then:
+        - script.execute: weather_update
+
+  - platform: homeassistant
+    id: weather_now_1d
+    entity_id: sensor.buienradar_detailed_condition_1d
+    on_value: 
+      then:
+        - script.execute: weather_update_1d      
+######################################################
+#                Villa Sensors                       #
+#                                                    #
+######################################################
+
+  - platform: homeassistant
+    entity_id: calendar.aston_villa_fixtures
+    attribute: "message"
+    id: villa_fixture
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  villa_fixture_label
+            #-  villa_fixture_mp_label
+          text: !lambda |-
+              return id(villa_fixture).state;             
+
+  - platform: homeassistant
+    entity_id: calendar.aston_villa_fixtures
+    attribute: "location"
+    id: villa_location    
+    on_value:
+      - lvgl.label.update:
+          id: villa_location_label
+          text: !lambda |-
+              return id(villa_location).state;
+
+  - platform: homeassistant
+    entity_id: sensor.villagame_date
+    id: villagame_date
+    on_value:
+      - lvgl.label.update:
+          id: villagame_date_label
+          text: !lambda |-
+              return id(villagame_date).state;
+
+  - platform: homeassistant
+    entity_id: sensor.astonvilla_match_date
+    id: villa_matchtime    
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  villa_matchtime_label
+           # -  villa_matchtime_mp_label
+          text: !lambda |-
+            if (id(villa_matchtime).state == "") {
+            return "Game On!";
+            } else if (id(villa_matchtime).state == " ") {
+            return "Game On!";
+            }
+            return id(villa_matchtime).state;
+
+  - platform: homeassistant
+    entity_id: sensor.villa_kickoff_time
+    id: villa_ko
+
+  - platform: homeassistant
+    entity_id: calendar.aston_villa_fixtures
+    attribute: "start_time"
+    id: villa_start_time
+
+######################################################
+#                Ajax Sensors                       #
+#                                                    #
+######################################################   
+  - platform: homeassistant
+    entity_id: calendar.ajax_fixtures
+    attribute: "message"
+    id: ajax_fixture
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  ajax_fixture_label
+            -  ajax_fixture_gamepage_label
+            #-  ajax_fixture_mp_label
+          text: !lambda |-
+              return id(ajax_fixture).state;
+#    on_value:
+#      - lvgl.label.update:
+#          id: ajax_fixture_label
+#          text: !lambda |-
+#              return id(ajax_fixture).state;
+  - platform: homeassistant
+    entity_id: sensor.team_tracker_ajax
+    attribute: "team_score"
+    id: ajax_score
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  ajax_score_label
+            #-  ajax_fixture_mp_label
+          text: !lambda |-
+              return id(ajax_score).state;
+
+  - platform: homeassistant
+    entity_id: sensor.team_tracker_ajax
+    attribute: "opponent_score"
+    id: ajax_opp_score
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  ajax_opp_score_label
+            #-  ajax_fixture_mp_label
+          text: !lambda |-
+              return id(ajax_opp_score).state;
+              
+  - platform: homeassistant
+    entity_id: sensor.team_tracker_ajax
+    attribute: "clock"
+    id: ajax_gametime
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  ajax_gametime_clock_label
+            #-  ajax_fixture_mp_label
+          text: !lambda |-
+              return id(ajax_gametime).state;
+
+  - platform: homeassistant
+    entity_id: calendar.ajax_fixtures
+    attribute: "location"
+    id: ajax_location    
+    on_value:
+      - lvgl.label.update:
+          id: ajax_location_label
+          text: !lambda |-
+              return id(ajax_location).state;
+
+  - platform: homeassistant
+    entity_id: sensor.ajax_match_date
+    id: ajax_matchtime
+    on_value:
+      - lvgl.label.update:
+          id:
+            -  ajax_matchtime_label
+            - ajax_matchtime_gamepage_label
+          text: !lambda |-
+            if (id(ajax_matchtime).state == "") {
+            return "Game On!";
+            } else if (id(ajax_matchtime).state == " ") {
+            return "Game On!";
+            }
+            return id(ajax_matchtime).state;
+
+  - platform: homeassistant
+    entity_id: sensor.ajaxgame_date
+    id: ajaxgame_date
+    on_value:
+      - lvgl.label.update:
+          id: ajax_start_time_label
+          text: !lambda |-
+              return id(ajaxgame_date).state;
+######################################################
+#                   F1 Sensors                       #
+#                                                    #
+######################################################
+
+  - platform: homeassistant
+    internal: false
+    entity_id: calendar.formula_1_race_times
+    attribute: "message"
+    id: f1_fixture
+    on_value:
+      - lvgl.label.update:
+          id: f1_fixture_label
+          text: !lambda |-
+              return id(f1_fixture).state;
+
+  - platform: homeassistant
+    entity_id: calendar.formula_1_race_times
+    attribute: "start_time"
+    id: f1_start_time
+
+  - platform: homeassistant
+    internal: false
+    entity_id: calendar.formula_1_race_times
+    attribute: "location"
+    id: f1_location    
+    on_value:
+      - lvgl.label.update:
+          id: f1_location_label
+          text: !lambda |-
+              return id(f1_location).state;
+
+  - platform: homeassistant
+    entity_id: sensor.f1_session_date
+    id: f1_sessiontime
+    on_value:
+        - lvgl.label.update:
+            id: f1_sessiontime_date_label
+            text: !lambda |-
+              if (id(f1_sessiontime).state == "") {
+              return "Lights Out!";
+              } else if (id(f1_sessiontime).state == " ") {
+              return "Lights Out!";
+              }
+              return id(f1_sessiontime).state;
+
+  - platform: homeassistant
+    entity_id: sensor.f1game_date
+    id: f1game_date
+    on_value:
+      - lvgl.label.update:
+          id: f1game_date_label
+          text: !lambda |-
+              return id(f1game_date).state;    
+######################################################
+#               Weather text sensors                 #
+#                                                    #
+######################################################
+
+  - platform: homeassistant
+    id: buienradar_condition
+    entity_id: sensor.buienradar_detailed_condition
+    on_value:
+      - lvgl.label.update:
+          id: condition_label
+          text: !lambda |-
+              std::string state = id(buienradar_condition).state.c_str(); {
+                  if (state == "clear_night") return "Clear Night";
+                  else if (state == "cloudy") return "Cloudy";
+                  else if (state == "clear") return "Clear";
+                  else if (state == "fog") return "Foggy";
+                  else if (state == "hail") return "Hail";
+                  else if (state == "lightning") return "Stormy";
+                  else if (state == "lightning-rainy") return "Stormy Rain";
+                  else if (state == "partlycloudy") return "Bit Cloudy";
+                  else if (state == "partlycloudy-fog") return "Bit Foggy";
+                  else if (state == "partlycloudy-light-rain") return "Bit Rainy";
+                  else if (state == "partlycloudy-rain") return "Bit Rainy";
+                  else if (state == "partlycloudy-light-snow") return "Bit Snowy";
+                  else if (state == "partlycloudy-snow") return "Bit Snowy";
+                  else if (state == "partlycloudy-lightning") return "Bit Stormy";
+                  else if (state == "pouring") return "Pouring";
+                  else if (state == "rainy") return "Rainy";
+                  else if (state == "light-rain") return "Light Rain";
+                  else if (state == "snowy") return "Snowy";
+                  else if (state == "light-snow") return "Bit Snowy";
+                  else if (state == "snowy-rainy") return "Slushy";
+                  else if (state == "sunny") return "Sunny";
+                  else if (state == "windy") return "Windy";
+                  else if (state == "windy_variant") return "Gales";
+                  else if (state == "exceptional") return "Nightmareish";
+
+                  
+                  return state;
+              }
+######################################################
+#                     LVGL                           #
+#                                                    #
+######################################################
+
+lvgl:
+  touchscreens:
+     - vnc_touchscreen
+  displays:
+     - my_display
+     - vnc_display
+
+  top_layer:
+    widgets:
+
+######################################################
+#                    TOPLINE                         #
+#                                                    #
+######################################################
+
+
+# TIME
+      - obj:
+          #x: 20
+          y: -20
+          align: TOP_MID
+          #width: 470
+          height: 45
+          bg_opa: TRANSP
+          border_opa: TRANSP
+          #styles: home_page
+          widgets:
+            - label:
+                id: display_time
+                align: TOP_MID
+                text_align: CENTER
+                #x: 160
+                #y: 50
+                text_font: robo_25
+                text_color: my_blue
+                text: "Booting Up"
+
+      - obj:
+          x: 15
+          y: -18
+          align: TOP_RIGHT
+          width: 125
+          height: 55
+          bg_opa: TRANSP
+          border_opa: TRANSP
+          layout:
+            pad_row: 2
+            pad_column: 5
+            type: GRID
+            grid_columns: [FR(1), FR(1), FR(1)]
+            grid_rows: [FR(1)]
+          #styles: home_page
+          widgets:
+
+# HA API STATE
+            - label:
+                #text_font: robo_25
+                text: "\U000F07D0"
+                id: lbl_hastatus
+                hidden: true
+                align: CENTER
+                #x: -10
+                #y: 0
+                text_font: roboto_icons_25
+                text_align: right
+                text_color: my_blue
+                grid_cell_column_pos: 1
+                grid_cell_row_pos: 0
+                grid_cell_x_align: STRETCH
+                grid_cell_y_align: STRETCH
+
+# WIFI
+            - label:
+                id: wifi_status
+                #align: CENTER
+                #x: -50
+                #y: -3
+                text: "${wifi_100}"
+                text_color: my_green
+                text_font: roboto_icons_25
+                grid_cell_column_pos: 0
+                grid_cell_row_pos: 0
+                grid_cell_x_align: STRETCH
+                grid_cell_y_align: STRETCH
+
+#Moto Battery               
+            - label:
+                id: moto_battery_label
+                #align: CENTER
+                #y: 40
+                #x: -05
+                text_font: roboto_icons_25
+                text_color: my_blue
+                text: "\U000F0091"
+                grid_cell_column_pos: 2
+                grid_cell_row_pos: 0
+                grid_cell_x_align: STRETCH
+                grid_cell_y_align: STRETCH
+
+# LEFT TOP GRID
+      - obj:
+          x: -05
+          y: -20
+          align: TOP_LEFT
+          width: 116
+          height: 55
+          bg_opa: TRANSP
+          border_opa: TRANSP
+          layout: 
+            pad_row: 1
+            pad_column: 1
+            type: GRID 
+            grid_columns: [FR(1), FR(1), FR(1)]
+            grid_rows: [FR(1)]
+          #styles: home_page
+          widgets:
+
+# temp Shelf
+            - label:
+                id: livingroom_temp_label
+                align: CENTER
+                #x: -05
+                y: 2
+                text_color: my_blue
+                text_font: robo_25
+                grid_cell_column_pos: 0
+                grid_cell_row_pos: 0
+                grid_cell_x_align: STRETCH
+                grid_cell_y_align: STRETCH
+
+# temp bedroom
+            - label:
+                id: bedroom_temp_label
+                align: CENTER
+                #x: +95
+                y: 2
+                text_color: my_blue
+                text_font: robo_25
+                grid_cell_column_pos: 2
+                grid_cell_row_pos: 0
+                grid_cell_x_align: STRETCH
+                grid_cell_y_align: STRETCH
+
+
+  pages:
+######################################################
+#                    MAIN PAGE                       #
+#                                                    #
+######################################################
+    - id: main_page
+      scrollbar_mode: "OFF"
+      on_load:
+        - lvgl.widget.hide: display_time
+      on_unload:
+        - lvgl.widget.show: display_time
+      bg_image_src: neonpink
+      #bg_color: color_black
+######################################################
+#                  Floating Elements                 #
+#                                                    #
+######################################################
+
+      widgets:
+        - obj:
+            align: BOTTOM_LEFT
+            height: 80
+            width: 80
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            scrollbar_mode: "OFF"
+            #border_width: 0
+            #outline_width: 0
+            #shadow_width: 0
+            x: 10
+            y: -7
+            pad_all: 0
+            widgets:
+              - obj:
+                  id: weather_icon_obj
+                  scrollbar_mode: "OFF"
+                  align: LEFT_MID
+                  height: 80
+                  width: 80
+                  bg_opa: TRANSP
+                  border_opa: TRANSP
+                  #bg_color: 0x000000
+                  widgets:
+                    - label:
+                        id: current_weather_icon
+                        recolor: true
+                        align: CENTER
+                        text_font: font_mdi_large
+                        text_color: my_blue
+                        text_align: CENTER
+                        text: "Weather"
+                        width: 120
+
+        - obj:
+            align: BOTTOM_RIGHT
+            height: 80
+            width: 80
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            scrollbar_mode: "OFF"
+            #border_width: 0
+            #outline_width: 0
+            #shadow_width: 0
+            x: -10
+            y: -7
+            pad_all: 0
+            widgets:
+              - obj:
+                  id: weather_icon_obj_1d
+                  scrollbar_mode: "OFF"
+                  align: LEFT_MID
+                  height: 80
+                  width: 80
+                  bg_opa: TRANSP
+                  border_opa: TRANSP
+                  #bg_color: 0x000000
+                  widgets:
+                    - label:
+                        id: current_weather_icon_1d
+                        recolor: true
+                        align: CENTER
+                        text_font: font_mdi_large
+                        text_color: my_pink
+                        text_align: CENTER
+                        text: "Weather"
+                        width: 120
+######################################################
+#                      Time Grid                     #
+#                                                    #
+######################################################
+
+        - obj:
+            #x: -10
+            y: +10
+            align: CENTER
+            width: 245
+            height: 235
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            layout: 
+              pad_row: 10
+              pad_column: 5
+              type: GRID 
+              grid_columns: [FR(1)]
+              grid_rows: [FR(5), FR(10), FR(20)]
+            #styles: home_page
+            widgets:
+
+              - label:
+                  #styles: date_style
+                  id: day_label
+                  #x: +220
+                  #y: +280
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: my_blue
+                  text_font: robo_25
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+              - label:
+                  id: bigtime_label
+                  #x: +220
+                  #y: +50
+                  #align: RIGHT_MID
+                  text_align: CENTER
+                  text_color: my_blue
+                  text_font: pennstation_65
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+              - label:
+                  id: date_label
+                  #styles: date_style
+                  x: -25
+                  y: +3
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: my_blue
+                  text_font: robo_25
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+
+######################################################
+#                 CONDITION Grid                     #
+#                                                    #
+######################################################
+
+        - obj:
+            #x: -15
+            y: 15
+            align: BOTTOM_MID
+            width: 220
+            height: 100
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            layout: 
+              pad_row: 5
+              pad_column: 5
+              type: GRID 
+              grid_columns: [FR(1)]
+              grid_rows: [FR(1), FR(1)]
+            #styles: home_page
+            widgets:
+
+              - label:
+                  #styles: date_style
+                  id: condition_label
+                  #x: +25
+                  #y: 75
+                  #width: 150
+                  #height: 35
+                  long_mode: scroll_circular
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: my_blue
+                  text_font: robo_25
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+              - label:
+                  #styles: date_style
+                  id: outside_temp_label
+                  #x: +25
+                  #y: -10
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: my_blue
+                  text: "${temperature}"
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+######################################################
+#                   VILLA PAGE                       #
+#                                                    #
+######################################################
+
+    - id: villa_mainpage
+      scrollbar_mode: "OFF"
+      bg_image_src: neonpink
+      #bg_color: color_black
+      bg_opa: 100%
+      widgets:
+        - label:
+            id: villa_matchtime_label
+            #styles: date_style
+            y: +30
+            align: TOP_MID
+            text_align: CENTER
+            text_color: my_blue
+            text_font: robo_45
+
+        - obj:
+            align: CENTER
+            bg_opa: 0%
+            border_opa: TRANSP
+            y: +45
+            #styles: villa_page
+            width: 300
+            height: 180
+            layout:
+              pad_row: 10
+              pad_column: 15
+              type: GRID
+              grid_columns: [FR(1)]
+              grid_rows: [FR(1),FR(1),FR(1),]            
+
+            widgets:
+              - label:
+                  id: villa_fixture_label
+                  long_mode: scroll_circular
+                  #styles: date_style
+                  #y: -15
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: my_blue
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+              - label:
+                  id: villagame_date_label
+                  #styles: date_style
+                  #y: -90
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: my_blue
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                                      
+              - label:
+                  id: villa_location_label
+                  long_mode: scroll_circular
+                  #styles: date_style
+                  #y: -35
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: my_blue
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  
+######################################################
+#                   AJAX  PAGE                       #
+#                                                    #
+######################################################
+
+    - id: ajax_mainpage
+      scrollbar_mode: "OFF"
+      bg_image_src: neonpink
+      border_opa: TRANSP
+      #bg_color: color_black
+      bg_opa: 100%
+      
+      widgets:
+        - label:
+            id: ajax_matchtime_label
+            #styles: date_style
+            y: +30
+            align: TOP_MID
+            text_align: CENTER
+            text_color: color_red
+            text_font: robo_45
+
+        - obj:
+            align: CENTER
+            bg_opa: 0%
+            border_opa: TRANSP
+            y: +45
+            #styles: ajax_page
+            width: 300
+            height: 180
+            layout:
+              pad_row: 10
+              pad_column: 15
+              type: GRID
+              grid_columns: [FR(1)]
+              grid_rows: [FR(1),FR(1),FR(1),]        
+
+            widgets:
+              - label:
+                  long_mode: scroll_circular
+                  id: ajax_fixture_label
+                  #styles: date_style
+                  y: -15
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_red
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+              - label:
+                  id: ajax_start_time_label
+                  #styles: date_style
+                  y: -90
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_red
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                                      
+              - label:
+                  long_mode: scroll_circular
+                  id: ajax_location_label
+                  #styles: date_style
+                  y: -35
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_red
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+######################################################
+#                      F1 PAGE                       #
+#                                                    #
+######################################################
+
+    - id: f1_mainpage
+      scrollbar_mode: "OFF"
+      #bg_image_src: f1
+      bg_image_src: neonpink
+      border_opa: TRANSP
+      bg_opa: 100%
+      widgets:
+        - label:
+            id: f1_sessiontime_date_label
+            #styles: date_style
+            y: +30
+            align: TOP_MID
+            text_align: CENTER
+            text_color: color_papaya
+            text_font: robo_45
+
+        - obj:
+            align: CENTER
+            bg_opa: 0%
+            border_opa: TRANSP
+            y: +45
+            #styles: f1_page
+            width: 300
+            height: 180
+            layout:
+              pad_row: 10
+              pad_column: 15
+              type: GRID
+              grid_columns: [FR(1)]
+              grid_rows: [FR(1),FR(1),FR(1),]       
+
+            widgets:
+              - label:
+                  id: f1_fixture_label
+                  long_mode: scroll_circular
+                  #styles: date_style
+                  y: -15
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_papaya
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+              - label:
+                  id: f1game_date_label
+                  #styles: date_style
+                  y: -90
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_papaya
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                                      
+              - label:
+                  long_mode: scroll_circular
+                  id: f1_location_label
+                  #styles: date_style
+                  y: -35
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_papaya
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+
+######################################################
+#                  AJAX  GAMEPAGE                    #
+#                                                    #
+######################################################
+
+    - id: ajax_gamepage
+      scrollbar_mode: "OFF"
+      bg_image_src: neonpink
+      border_opa: TRANSP
+      #bg_color: color_black
+      bg_opa: 100%
+      
+      widgets:
+        - label:
+            id: ajax_matchtime_gamepage_label
+            #styles: date_style
+            y: +30
+            align: TOP_MID
+            text_align: CENTER
+            text_color: color_red
+            text_font: robo_45
+
+        - obj:
+            align: CENTER
+            bg_opa: 0%
+            border_opa: TRANSP
+            y: +55
+            #styles: ajax_page
+            width: 300
+            height: 120
+            layout:
+              pad_row: 10
+              pad_column: 15
+              type: GRID
+              grid_columns: [FR(1)]
+              grid_rows: [FR(1),FR(1)]        
+
+            widgets:
+              - label:
+                  long_mode: scroll_circular
+                  id: ajax_fixture_gamepage_label
+                  #styles: date_style
+                  y: -15
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_red
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+                                                       
+              - label:
+                  long_mode: scroll_circular
+                  id: ajax_gametime_clock_label
+                  #styles: date_style
+                  y: -35
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: color_red
+                  text_font: robo_30
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+
+        - obj:
+            align: CENTER
+            bg_opa: 0%
+            border_opa: TRANSP
+            y: -25
+            #styles: ajax_page
+            width: 300
+            height: 60
+            layout:
+              pad_row: 10
+              pad_column: 15
+              type: GRID
+              grid_columns: [FR(1),FR(1)]
+              grid_rows: [FR(1)]        
+
+            widgets:
+              - label:
+                  id: ajax_score_label
+                  #styles: date_style
+                  #x: -20
+                  y: -90
+                  align: LEFT_MID
+                  text_align: CENTER
+                  text_color: color_white
+                  text_font: robo_45
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+
+              - label:
+                  id: ajax_opp_score_label
+                  #styles: date_style
+                  #x: 20
+                  y: -90
+                  align: RIGHT_MID
+                  text_align: CENTER
+                  text_color: color_white
+                  text_font: robo_45
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 0
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
