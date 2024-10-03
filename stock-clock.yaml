@@ -69,7 +69,7 @@ script: !include common/script_timeupdate.yaml
 
 api:
   encryption:
-    key: "OmNeUzZYRTBS2kFubeWC+EzB1JVoWxjC7gqhA31E1EE="
+    key: "key"
   on_client_connected:
     - if:
         condition:
@@ -100,7 +100,7 @@ display:
     id: vnc_display
 
     rotation: 180
-    update_interval: 5s
+    update_interval: 10s
     auto_clear_enabled: false
     dimensions:
       width: 320
@@ -198,7 +198,6 @@ binary_sensor:
   - platform: gpio
     pin:
       number: GPIO38
-      #mode: INPUT_PULLUP
       inverted: True
     name: "Light Switch"
     icon: mdi:nintendo-switch
@@ -451,6 +450,7 @@ sensor:
 #                 TEMP SENSORS                       #
 #                                                    #
 ######################################################
+
   - platform: internal_temperature
     name: "${friendly_name} Internal Temperature"   
 
@@ -624,7 +624,6 @@ text_sensor:
       - lvgl.label.update:
           id:
             -  villa_matchtime_label
-           # -  villa_matchtime_mp_label
           text: !lambda |-
             if (id(villa_matchtime).state == "") {
             return "Game On!";
@@ -643,9 +642,10 @@ text_sensor:
     id: villa_start_time
 
 ######################################################
-#                Ajax Sensors                       #
+#                Ajax Sensors                        #
 #                                                    #
 ######################################################   
+
   - platform: homeassistant
     entity_id: calendar.ajax_fixtures
     attribute: "message"
@@ -658,11 +658,7 @@ text_sensor:
             #-  ajax_fixture_mp_label
           text: !lambda |-
               return id(ajax_fixture).state;
-#    on_value:
-#      - lvgl.label.update:
-#          id: ajax_fixture_label
-#          text: !lambda |-
-#              return id(ajax_fixture).state;
+
   - platform: homeassistant
     entity_id: sensor.team_tracker_ajax
     attribute: "team_score"
@@ -671,7 +667,7 @@ text_sensor:
       - lvgl.label.update:
           id:
             -  ajax_score_label
-            #-  ajax_fixture_mp_label
+
           text: !lambda |-
               return id(ajax_score).state;
 
@@ -683,7 +679,6 @@ text_sensor:
       - lvgl.label.update:
           id:
             -  ajax_opp_score_label
-            #-  ajax_fixture_mp_label
           text: !lambda |-
               return id(ajax_opp_score).state;
               
@@ -695,7 +690,6 @@ text_sensor:
       - lvgl.label.update:
           id:
             -  ajax_gametime_clock_label
-            #-  ajax_fixture_mp_label
           text: !lambda |-
               return id(ajax_gametime).state;
 
@@ -824,8 +818,7 @@ text_sensor:
                   else if (state == "windy") return "Windy";
                   else if (state == "windy_variant") return "Gales";
                   else if (state == "exceptional") return "Nightmareish";
-
-                  
+                 
                   return state;
               }
 ######################################################
@@ -1037,9 +1030,6 @@ lvgl:
             bg_opa: TRANSP
             border_opa: TRANSP
             scrollbar_mode: "OFF"
-            #border_width: 0
-            #outline_width: 0
-            #shadow_width: 0
             x: -10
             y: -7
             pad_all: 0
@@ -1069,7 +1059,6 @@ lvgl:
 ######################################################
 
         - obj:
-            #x: -10
             y: +10
             align: CENTER
             width: 245
@@ -1088,8 +1077,6 @@ lvgl:
               - label:
                   #styles: date_style
                   id: day_label
-                  #x: +220
-                  #y: +280
                   align: CENTER
                   text_align: CENTER
                   text_color: my_blue
@@ -1101,9 +1088,6 @@ lvgl:
 
               - label:
                   id: bigtime_label
-                  #x: +220
-                  #y: +50
-                  #align: RIGHT_MID
                   text_align: CENTER
                   text_color: my_blue
                   text_font: pennstation_65
@@ -1152,10 +1136,6 @@ lvgl:
               - label:
                   #styles: date_style
                   id: condition_label
-                  #x: +25
-                  #y: 75
-                  #width: 150
-                  #height: 35
                   long_mode: scroll_circular
                   align: CENTER
                   text_align: CENTER
@@ -1169,8 +1149,6 @@ lvgl:
               - label:
                   #styles: date_style
                   id: outside_temp_label
-                  #x: +25
-                  #y: -10
                   align: CENTER
                   text_align: CENTER
                   text_color: my_blue
@@ -1188,7 +1166,6 @@ lvgl:
     - id: villa_mainpage
       scrollbar_mode: "OFF"
       bg_image_src: neonpink
-      #bg_color: color_black
       bg_opa: 100%
       widgets:
         - label:
@@ -1220,7 +1197,6 @@ lvgl:
                   id: villa_fixture_label
                   long_mode: scroll_circular
                   #styles: date_style
-                  #y: -15
                   align: CENTER
                   text_align: CENTER
                   text_color: my_blue
@@ -1247,7 +1223,6 @@ lvgl:
                   id: villa_location_label
                   long_mode: scroll_circular
                   #styles: date_style
-                  #y: -35
                   align: CENTER
                   text_align: CENTER
                   text_color: my_blue
@@ -1266,7 +1241,6 @@ lvgl:
       scrollbar_mode: "OFF"
       bg_image_src: neonpink
       border_opa: TRANSP
-      #bg_color: color_black
       bg_opa: 100%
       
       widgets:
@@ -1343,7 +1317,6 @@ lvgl:
 
     - id: f1_mainpage
       scrollbar_mode: "OFF"
-      #bg_image_src: f1
       bg_image_src: neonpink
       border_opa: TRANSP
       bg_opa: 100%
@@ -1424,7 +1397,6 @@ lvgl:
       scrollbar_mode: "OFF"
       bg_image_src: neonpink
       border_opa: TRANSP
-      #bg_color: color_black
       bg_opa: 100%
       
       widgets:
@@ -1516,7 +1488,6 @@ lvgl:
               - label:
                   id: ajax_opp_score_label
                   #styles: date_style
-                  #x: 20
                   y: -90
                   align: RIGHT_MID
                   text_align: CENTER
