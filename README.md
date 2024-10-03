@@ -7,7 +7,7 @@ Convert the LVGL Touchscreen project code to smaller screens.
 I have a few displays of different dimensions that I have had for some time now and would like to convert them to LVGL.
 I thought this would take a long time but I actually converted everything to work on a 320X240 screen with only 8MB flash and 4MB PSRAM - sacrifices had to be made!!
 
-# Parts Used
+## Parts Used
 
 LilyGO TTGO T4 V1.3 ESP32 - with 2.2 inch TFT Display
 The rest of the parts are from the [bluetooth clock radio project](https://github.com/smarthomesnowy/ESPHome-BluetoothClo) 
@@ -27,6 +27,10 @@ I made a list of the features I would want in a new display.
 This will be a lot easier than the first [LVGL project](https://github.com/smarthomesnowy/ESPHome-LVGL-Touchscreen) because I can just copy everything over to this project them remove the things I don't need on these displays - mainly the touchscreen stuff.
 
 For speed and for sharing it easily on Github I used one main yaml file instead of the breaking the code into different yaml files.
+## Converting the code
+So first of all I removed the animated weather icons code and images from the yaml, then started to tweak the font sizes down and remove the old font sizes. At first I had so many widgets hanging off the the bounds of the display but slowly and surely I wrestled everything to where it should be and did some more aligning and tweaking of everything.
+I made just about everything centered on this display size because of the constraints would not allow me to display anything more per page unlike the larger screen.
+When I got the new MDI icons working for the weather for today AND tomorrow I was very happy indeed - they look really nice on the smaller screen.
 
 ## Ideas for the future
 On the old design the clock code had some triggers that made the RGB light ring run effects based on when football and F1 was on, I would like to replace this.
