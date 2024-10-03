@@ -31,7 +31,7 @@ For speed and for sharing it easily on Github I used one main yaml file instead 
 ## Ideas for the future
 On the old design the clock code had some triggers that made the RGB light ring run effects based on when football and F1 was on, I would like to replace this.
 When a football game is playing I want to display a new screen that shows the fixture and the live score.
-I have built a test page (Akax Game Page) and made it display the score sensor from Home Assistant which comes from the ESPN Team Track addon on. The testing did not got too well ;() the scores are not updated by ESPN "live" so there is a five minutes or longer lag to when a goal is scored. 
+I have built a test page (Ajax Game Page) and made it display the score sensor from Home Assistant which comes from the ESPN Team Track addon on. The testing did not got too well ;() the scores are not updated by ESPN "live" so there is a five minutes or longer lag to when a goal is scored. 
 I have to investigate a better way of getting live scores into a Home Assistant sensor somehow....
 
 ## Conclusion
