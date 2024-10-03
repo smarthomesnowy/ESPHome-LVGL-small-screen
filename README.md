@@ -20,7 +20,7 @@ I made a list of the features I would want in a new display.
 - Animated icons for the weather states. (not possible with this amount of space so I used MDI icons for the weather icons)
 - Display temperature sensor data in different colours based on the temperature.
 - Football and F1 pages with all the relevant data.
-- Short display of fixtures and countdowns to those fixtures for the homepage.
+- Short display of fixtures and countdowns to those fixtures for the homepage. (not possible with this dimensions of screen)
 - Team badges for football fixtures that dynamically change based on the fixture. (STILL work in progress...)
 
 ## Planning
